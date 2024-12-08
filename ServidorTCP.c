@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
             int client_fd;
             struct sigaction sa;
 
-            sa.sa_handler = SIG;
+            sa.sa_handler = SIG_IGN;
             sa.sa_flags = 0;
             if (sigaction(SIGCHLD, &sa, NULL) == -1)
             {
