@@ -8,7 +8,7 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define PUERTO 8080
+#define PUERTO 24000
 
 void serverTCP(int s, struct sockaddr_in clientaddr_in);
 
