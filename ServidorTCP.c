@@ -7,6 +7,11 @@
 #include <sys/socket.h>
 
 #define PORT 79 // Puerto "bien conocido" para Finger
+#define LOG_FILE "peticiones.log"
+
+// TODO: Create pararell socket for UDP, make the conections , create serverUDP();
+// TODO: Makefile
+// TODO: Lanzaservidor.sh (try on nogal)
 
 int main(int argc, char* argv[]) {
     int FIN = 0;
@@ -62,7 +67,7 @@ int main(int argc, char* argv[]) {
             int client_fd;
             struct sigaction sa;
 
-            sa.sa_handler = NULL;
+            sa.sa_handler = SIG;
             sa.sa_flags = 0;
             if (sigaction(SIGCHILD, &sa, NULL) == -1)
             {
@@ -105,7 +110,53 @@ int main(int argc, char* argv[]) {
                                           // a new child is created. Prevents of running out of FD space.
                 }
             }
+    close(server_fd);
     return 0;
 }
 
+serverTCP(int client_fd, struct sockaddr_in client_addr)
+{
+    char buffer[1024];
+    char response[1024] = {0};
 
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received > 0) 
+    {
+        buffer[bytes_received] = '\0'; // Terminar la cadena recibida
+        handle_finger_request(buffer, response);
+        send(client_fd, response, strlen(response), 0);
+
+        // Registrar la conexión
+        log_event(inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port),
+                    "TCP", buffer, response);
+    }
+    close(client_fd);
+}
+
+// TODO: serverUDP(...)
+
+// Función para registrar eventos en el archivo de log
+void log_event(const char *client_ip, int client_port, const char *protocol,
+               const char *command, const char *response) {
+    FILE *log_file = fopen(LOG_FILE, "a");
+    if (!log_file) {
+        perror("Error al abrir el archivo de log");
+        return;
+    }
+
+    // Obtener la hora actual
+    time_t now = time(NULL);
+    char time_str[64];
+    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
+
+    // Registrar la información
+    fprintf(log_file, "[%s] Conexión desde %s:%d usando %s\n", time_str, client_ip, client_port, protocol);
+    fprintf(log_file, "Comando recibido: %s\n", command);
+    fprintf(log_file, "Respuesta enviada: %s\n", response);
+    fclose(log_file);
+}
+
+handle_finger_request(char* buffer, char* response)
+{
+    // TODO: From buffer string execute command and parse output to string response
+}
