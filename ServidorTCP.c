@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <signal.h>  // Asegúrate de incluir esta biblioteca
+
 
 #define PORT 79 // Puerto "bien conocido" para Finger
 #define LOG_FILE "peticiones.log"
@@ -12,6 +14,12 @@
 // TODO: Create pararell socket for UDP, make the conections , create serverUDP();
 // TODO: Makefile
 // TODO: Lanzaservidor.sh (try on nogal)
+
+// Prototipo de la función serverTCP
+void serverTCP(int client_fd, struct sockaddr_in client_addr);
+void handle_finger_request(char* buffer, char* response);
+
+
 
 int main(int argc, char* argv[]) {
     int FIN = 0;
@@ -69,10 +77,10 @@ int main(int argc, char* argv[]) {
 
             sa.sa_handler = SIG;
             sa.sa_flags = 0;
-            if (sigaction(SIGCHILD, &sa, NULL) == -1)
+            if (sigaction(SIGCHLD, &sa, NULL) == -1)
             {
-                perror("sigaction(SIGCHILD)");
-                fprintf(stderr, "%s: unable to register SIGCHILD signal \n", argv[0]);
+                perror("sigaction(SIGCHLD)");
+                fprintf(stderr, "%s: unable to register SIGCHLD signal \n", argv[0]);
                 exit(1);
             }
 
@@ -114,7 +122,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-serverTCP(int client_fd, struct sockaddr_in client_addr)
+void serverTCP(int client_fd, struct sockaddr_in client_addr)
 {
     char buffer[1024];
     char response[1024] = {0};
@@ -156,7 +164,7 @@ void log_event(const char *client_ip, int client_port, const char *protocol,
     fclose(log_file);
 }
 
-handle_finger_request(char* buffer, char* response)
+void handle_finger_request(char* buffer, char* response)
 {
     // TODO: From buffer string execute command and parse output to string response
 }
