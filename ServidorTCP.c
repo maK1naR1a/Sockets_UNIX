@@ -8,7 +8,8 @@
 
 #define PORT 79 // Puerto "bien conocido" para Finger
 
-int main() {
+int main(int argc, char* argv[]) {
+    int FIN = 0;
     int server_fd;
     struct sockaddr_in server_addr;
 
@@ -23,11 +24,11 @@ int main() {
     // Configurar la dirección del servidor
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET; // IPv4
-    server_addr.sin_addr.s_addr = INADDR_ANY; // Escuchar en todas las interfaces
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY); // Escuchar en todas las interfaces
     server_addr.sin_port = htons(PORT); // Puerto 79, convertido a orden de red
     
     // Asociar el socket al puerto
-    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+    if (bind(server_fd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("Error al asociar el socket");
         close(server_fd);
         exit(EXIT_FAILURE);
@@ -43,34 +44,67 @@ int main() {
     }
 
     printf("Servidor escuchando en el puerto %d.\n", PORT);
+    
+    // Hacerlo demonio
+    setpgrp();
+    switch(fork())
+    {
+        case -1:  
+        // Unable to fork
+            perror(argv[0]);
+            fprintf(stderr, "%s: unable to fork Daemon \n", argv[0]);
+            exit(EXIT_FAILURE);
 
-    int client_fd;
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
+        case 0 : 
+            close(0);
+            close(2);
 
-    printf("Esperando conexiones...\n");
+            int client_fd;
+            struct sigaction sa;
 
-    // Aceptar una conexión
-    if ((client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len)) == -1) {
-        perror("Error al aceptar la conexión");
-        close(server_fd);
-        exit(EXIT_FAILURE);
-    }
+            sa.sa_handler = NULL;
+            sa.sa_flags = 0;
+            if (sigaction(SIGCHILD, &sa, NULL) == -1)
+            {
+                perror("sigaction(SIGCHILD)");
+                fprintf(stderr, "%s: unable to register SIGCHILD signal \n", argv[0]);
+                exit(1);
+            }
 
-    printf("Conexión aceptada desde %s:%d.\n",
-           inet_ntoa(client_addr.sin_addr),
-           ntohs(client_addr.sin_port));
+            struct sockaddr_in client_addr;
+            socklen_t client_addr_len = sizeof(client_addr);
 
-        char *message = "Bienvenido al servidor Finger.\n";
-    if (send(client_fd, message, strlen(message), 0) == -1) {
-        perror("Error al enviar mensaje al cliente");
-    }
+            printf("Esperando conexiones...\n");
 
-    printf("Mensaje enviado al cliente.\n");
+            while(!FIN)
+            {
+                // Aceptar una conexión
+                if ((client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len)) == -1)
+                {
+                    perror("Error al aceptar la conexión");
+                    close(server_fd);
+                    exit(EXIT_FAILURE);
+                }
+                switch (fork())
+                {
+                    case -1:
+                    // Can't fork
+                    perror("Error al crear nieto");
+                    close(server_fd);
+                    exit(EXIT_FAILURE);
 
-    close(client_fd); // Cerrar la conexión con el cliente
-    close(server_fd); // Cerrar el socket del servidor
-
+                    case 0:
+                    // Niece created for each connection
+                        close(server_fd); //Close the listen socket inherited from the daemon
+                        serverTCP(client_fd, client_addr);
+                        exit(0);
+                    
+                    default:
+                    // Daemon
+                        close(client_fd); // The daemon closes the new accept socket when 
+                                          // a new child is created. Prevents of running out of FD space.
+                }
+            }
     return 0;
 }
 
