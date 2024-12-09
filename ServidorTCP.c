@@ -174,5 +174,5 @@ void log_event(const char *client_ip, int client_port, const char *protocol,
 void handle_finger_request(char* buffer, char* response)
 {
     // TODO: From buffer string execute command and parse output to string response
-    strcpy (&response, "Hola cliente");
+    strcpy (response, "Hola cliente");
 }
