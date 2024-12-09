@@ -136,6 +136,7 @@ void serverTCP(int client_fd, struct sockaddr_in client_addr)
     if (bytes_received > 0) 
     {
         buffer[bytes_received] = '\0'; // Terminar la cadena recibida
+        printf("-- %s -- cadena recibida", buffer); 
         handle_finger_request(buffer, response);
         send(client_fd, response, strlen(response), 0);
 
