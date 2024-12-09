@@ -21,7 +21,8 @@ void handle_finger_request(char* buffer, char* response);
 
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) 
+{
     int FIN = 0;
     int server_fd;
     struct sockaddr_in server_addr;
@@ -121,10 +122,10 @@ int main(int argc, char* argv[]) {
             
     	default:
     		close(client_fd);
-    		 
+    }
+    close(client_fd);
     close(server_fd);
     return 0;
-    }
 }
 
 void serverTCP(int client_fd, struct sockaddr_in client_addr)
@@ -173,6 +174,5 @@ void log_event(const char *client_ip, int client_port, const char *protocol,
 void handle_finger_request(char* buffer, char* response)
 {
     // TODO: From buffer string execute command and parse output to string response
-    strcpy ("raulgay", &response);
-    
+    strcpy (&response, "Hola cliente");
 }
