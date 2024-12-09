@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <signal.h>  // Asegúrate de incluir esta biblioteca
 
 
@@ -18,7 +19,8 @@
 // Prototipo de la función serverTCP
 void serverTCP(int client_fd, struct sockaddr_in client_addr);
 void handle_finger_request(char* buffer, char* response);
-
+void log_event(const char *client_ip, int client_port, const char *protocol,
+               const char *command, const char *response);
 
 
 int main(int argc, char* argv[]) 
@@ -123,7 +125,6 @@ int main(int argc, char* argv[])
     	default:
     		close(client_fd);
     }
-    close(client_fd);
     close(server_fd);
     return 0;
 }
