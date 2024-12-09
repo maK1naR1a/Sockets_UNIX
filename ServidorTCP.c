@@ -37,6 +37,18 @@ int main(int argc, char* argv[])
 
     printf("Socket TCP creado exitosamente.\n");
 
+
+    pid_t pid_udp = fork();
+    if (pid_udp == -1) {
+        perror("Error al crear proceso para UDP");
+        exit(EXIT_FAILURE);
+    } else if (pid_udp == 0) {
+        // Proceso hijo para manejar UDP
+        serverUDP();
+        exit(EXIT_SUCCESS);
+        printf("Socket UDP creado exitosamente.\n");
+    }
+
     // Configurar la dirección del servidor
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET; // IPv4
@@ -129,28 +141,6 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void serverTCP(int client_fd, struct sockaddr_in client_addr)
-{
-    char buffer[1024];
-    char response[1024] = {0};
-
-    int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-    if (bytes_received > 0) 
-    {
-        buffer[bytes_received] = '\0'; // Terminar la cadena recibida
-        printf("-- %s -- cadena recibida", buffer); 
-        handle_finger_request(buffer, response);
-        send(client_fd, response, strlen(response), 0);
-
-        // Registrar la conexión
-        log_event(inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port),
-                    "TCP", buffer, response);
-    }
-    close(client_fd);
-}
-
-// TODO: serverUDP(...)
-
 // Función para registrar eventos en el archivo de log
 void log_event(const char *client_ip, int client_port, const char *protocol,
                const char *command, const char *response) {
@@ -171,6 +161,86 @@ void log_event(const char *client_ip, int client_port, const char *protocol,
     fprintf(log_file, "Respuesta enviada: %s\n", response);
     fclose(log_file);
 }
+
+void serverTCP(int client_fd, struct sockaddr_in client_addr)
+{
+    char buffer[1024];
+    char response[1024] = {0};
+
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received > 0) 
+    {
+        buffer[bytes_received] = '\0'; // Terminar la cadena recibida
+        printf("-- %s -- cadena recibida", buffer); 
+        handle_finger_request(buffer, response);
+        send(client_fd, response, strlen(response), 0);
+
+        // Registrar la conexión
+        log_event(inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port),
+                    "TCP", buffer, response);
+    }
+    close(client_fd);
+}
+
+void serverUDP() {
+    int udp_socket;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    char buffer[1024];
+    char response[1024] = {0};
+
+    // Crear socket UDP
+    if ((udp_socket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("Error al crear el socket UDP");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Socket UDP creado exitosamente.\n");
+
+    // Configurar la dirección del servidor
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET; // IPv4
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY); // Escuchar en todas las interfaces
+    server_addr.sin_port = htons(PORT); // Puerto 79, convertido a orden de red
+
+    // Asociar el socket al puerto
+    if (bind(udp_socket, (const struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        perror("Error al asociar el socket UDP");
+        close(udp_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Socket UDP asociado al puerto %d.\n", PORT);
+
+    while (1) {
+        // Recibir datos del cliente
+        int bytes_received = recvfrom(udp_socket, buffer, sizeof(buffer) - 1, 0, 
+                                      (struct sockaddr *)&client_addr, &client_addr_len);
+        if (bytes_received == -1) {
+            perror("Error al recibir datos UDP");
+            continue;
+        }
+
+        buffer[bytes_received] = '\0'; // Terminar la cadena recibida
+        printf("Mensaje recibido por UDP: %s\n", buffer);
+
+        // Manejar la solicitud
+        handle_finger_request(buffer, response);
+
+        // Enviar respuesta al cliente
+        if (sendto(udp_socket, response, strlen(response), 0, 
+                   (struct sockaddr *)&client_addr, client_addr_len) == -1) {
+            perror("Error al enviar respuesta UDP");
+        }
+
+        // Registrar la conexión
+        log_event(inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port),
+                  "UDP", buffer, response);
+    }
+
+    close(udp_socket);
+}
+
 
 void handle_finger_request(char* buffer, char* response)
 {
