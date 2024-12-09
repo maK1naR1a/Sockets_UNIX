@@ -21,7 +21,7 @@ void serverTCP(int client_fd, struct sockaddr_in client_addr);
 void handle_finger_request(char* buffer, char* response);
 void log_event(const char *client_ip, int client_port, const char *protocol,
                const char *command, const char *response);
-
+void serverUDP();
 
 int main(int argc, char* argv[]) 
 {
@@ -44,9 +44,8 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     } else if (pid_udp == 0) {
         // Proceso hijo para manejar UDP
-        serverUDP();
+        serverUDP(); // Creacion y bucle de UDP
         exit(EXIT_SUCCESS);
-        printf("Socket UDP creado exitosamente.\n");
     }
 
     // Configurar la dirección del servidor
@@ -159,7 +158,10 @@ void log_event(const char *client_ip, int client_port, const char *protocol,
     fprintf(log_file, "[%s] Conexión desde %s:%d usando %s\n", time_str, client_ip, client_port, protocol);
     fprintf(log_file, "Comando recibido: %s\n", command);
     fprintf(log_file, "Respuesta enviada: %s\n", response);
-    fclose(log_file);
+    if (fclose(log_file) != 0) {
+        perror("Error al cerrar el archivo de log");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void serverTCP(int client_fd, struct sockaddr_in client_addr)
