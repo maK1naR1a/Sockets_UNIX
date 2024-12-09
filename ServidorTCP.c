@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
             int client_fd;
             struct sigaction sa;
 
-            sa.sa_handler = SIG;
+            sa.sa_handler = SIG_IGN;
             sa.sa_flags = 0;
             if (sigaction(SIGCHLD, &sa, NULL) == -1)
             {
@@ -118,8 +118,13 @@ int main(int argc, char* argv[]) {
                                           // a new child is created. Prevents of running out of FD space.
                 }
             }
+            
+    	default:
+    		close(client_fd);
+    		 
     close(server_fd);
     return 0;
+    }
 }
 
 void serverTCP(int client_fd, struct sockaddr_in client_addr)
@@ -167,4 +172,6 @@ void log_event(const char *client_ip, int client_port, const char *protocol,
 void handle_finger_request(char* buffer, char* response)
 {
     // TODO: From buffer string execute command and parse output to string response
+    strcpy ("raulgay", &response);
+    
 }
