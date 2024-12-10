@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
     }
     printf("Socket TCP asociado al servidor %d.\n", PORT);
 
-    if (bind(socketUDP_fd, (const struct sockaddr *)&server_addr, sizeof(sockaddr_in)) == -1) {
+    if (bind(socketUDP_fd, (const struct sockaddr *)&server_addr, sizeof(sock_addr)) == -1) {
         perror("Error al asociar el socket UDP");
         close(socketUDP_fd);
         exit(EXIT_FAILURE);
@@ -389,7 +389,8 @@ void serverUDP(int s, char * buffer, struct sockaddr_in clientaddr_in)
     struct hostent *hp;		/* pointer to host info for requested host */
     int nc, errcode;
 
-    struct addrinfo hints, *res;
+    struct addrinfo hints;
+    struct addrinfo* res;
 
 	int addrlen;
     
