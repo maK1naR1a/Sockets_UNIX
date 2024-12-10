@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
     }
     printf("Socket TCP asociado al servidor %d.\n", PORT);
 
-    if (bind(socketUDP_fd, (const struct sockaddr *)&server_addr, sizeof(sock_addr)) == -1) {
+    if (bind(socketUDP_fd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("Error al asociar el socket UDP");
         close(socketUDP_fd);
         exit(EXIT_FAILURE);
