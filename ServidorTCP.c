@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <signal.h>  // Asegúrate de incluir esta biblioteca
+#include <errno.h>
 
 
 #define ADDRNOTFOUND	0xffffffff	/* return address for unfound host */
@@ -31,7 +32,7 @@
  *
  */
 void serverTCP(int client_fd, struct sockaddr_in client_addr);
-void serverUDP();
+void serverUDP(int s, char * buffer, struct sockaddr_in clientaddr_in);
 
 void log_event(const char *client_ip, int client_port, const char *protocol,
                const char *command, const char *response);
@@ -79,8 +80,8 @@ int main(int argc, char* argv[])
 
 
 	/* clear out address structures */
-	memset ((char *)&myaddr_in, 0, sizeof(struct sockaddr_in));
-   	memset ((char *)&clientaddr_in, 0, sizeof(struct sockaddr_in));
+	memset ((char *)&server_addr, 0, sizeof(struct sockaddr_in));
+   	memset ((char *)&client_addr, 0, sizeof(struct sockaddr_in));
 
     addrlen = sizeof(struct sockaddr_in);
 
@@ -91,7 +92,7 @@ int main(int argc, char* argv[])
     
 
     // Asociar los sockets al servidor
-    if (bind(passiveSocketTCP_fd, (const struct sockaddr *)&server_addr, sizeof(sockaddr_in)) == -1) {
+    if (bind(passiveSocketTCP_fd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("Error al asociar el socket");
         close(passiveSocketTCP_fd);
         exit(EXIT_FAILURE);
