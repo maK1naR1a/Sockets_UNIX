@@ -8,6 +8,7 @@
 #include <time.h>
 #include <signal.h>  // Asegúrate de incluir esta biblioteca
 #include <errno.h>
+#include <netdb.h>  
 
 
 #define ADDRNOTFOUND	0xffffffff	/* return address for unfound host */
@@ -390,7 +391,7 @@ void serverUDP(int s, char * buffer, struct sockaddr_in clientaddr_in)
     int nc, errcode;
 
     struct addrinfo hints;
-    struct addrinfo* res;
+    struct addrinfo *res;
 
 	int addrlen;
     
