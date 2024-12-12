@@ -42,7 +42,7 @@ void handle_finger_request(char* buffer, char* response);
 void errout(char *hostname);
     
 int FIN = 0;
-void terminate(){ FIN = 1; };
+void terminate();
 
 int main(int argc, char* argv[]) 
 {
@@ -128,8 +128,6 @@ int main(int argc, char* argv[])
             exit(EXIT_FAILURE);
 
         case 0 : 
-            close(0);
-            close(2);
 
             if (sigaction(SIGCHLD, &sa, NULL) == -1)
             {
@@ -165,6 +163,7 @@ int main(int argc, char* argv[])
                         FIN=1;
                         close (passiveSocketTCP_fd);
                         close (socketUDP_fd);
+                        close (socketTCP_fd); 
                         perror("\nFinalizando el servidor. Senal recibida en select\n "); 
                     }
                 }
@@ -173,6 +172,7 @@ int main(int argc, char* argv[])
                     // Comprobamos que tipo de socket es (TCP/UDP)
                     if (FD_ISSET(passiveSocketTCP_fd, &readmask)) // Si es TCP...
                     {
+                        printf("Esperando conexión en el puerto %d...\n", PORT);
                         socketTCP_fd = accept(passiveSocketTCP_fd, (struct sockaddr *) &client_addr, &addrlen);
                         if (socketTCP_fd == -1) exit(EXIT_FAILURE);
 
@@ -201,12 +201,14 @@ int main(int argc, char* argv[])
                         serverUDP (socketUDP_fd, buffer, client_addr);
                     }
                 }
+                usleep(100000);  // Pausa de 100 milisegundos
             } // Fin bucle infinito atencion clientes
             close(passiveSocketTCP_fd); // TODO : Es necesario????, lo es el de abajo o ambos
             close(socketTCP_fd);
             close(socketUDP_fd);
 
             printf("\nSERVIDOR FINALIZADO!\n");
+            exit(EXIT_SUCCESS);
 
     	default:
             exit(EXIT_SUCCESS);
@@ -326,6 +328,12 @@ void serverTCP(int s, struct sockaddr_in clientaddr_in)
 			 * next recv at the top of the loop will start at
 			 * the begining of the next request.
 			 */
+        if (len == 0)
+        { 
+            printf ("Cliente desconectado");
+            FIN = 1;
+            exit(0);
+        }
 		while (len < TAM_BUFFER) {
 			len1 = recv(s, &buf[len], TAM_BUFFER-len, 0);
 			if (len1 == -1) errout(hostname);
@@ -336,7 +344,7 @@ void serverTCP(int s, struct sockaddr_in clientaddr_in)
 			/* This sleep simulates the processing of the
 			 * request that a real server might do.
 			 */
-		sleep(1);
+		sleep(1); //Finger
 			/* Send a response back to the client. */
 		if (send(s, buf, TAM_BUFFER, 0) != TAM_BUFFER) errout(hostname);
 	}
@@ -397,8 +405,8 @@ void serverUDP(int s, char * buffer, struct sockaddr_in clientaddr_in)
     
    	addrlen = sizeof(struct sockaddr_in);
 
-      memset (&hints, 0, sizeof (hints));
-      hints.ai_family = AF_INET;
+    memset (&hints, 0, sizeof (hints));
+    hints.ai_family = AF_INET;
 		/* Treat the message as a string containing a hostname. */
 	    /* Esta funci�n es la recomendada para la compatibilidad con IPv6 gethostbyname queda obsoleta. */
     errcode = getaddrinfo (buffer, NULL, &hints, &res); 
@@ -408,12 +416,11 @@ void serverUDP(int s, char * buffer, struct sockaddr_in clientaddr_in)
 		reqaddr.s_addr = ADDRNOTFOUND;
       }
     else {
-		/* Copy address of host into the return buffer. */
 		reqaddr = ((struct sockaddr_in *) res->ai_addr)->sin_addr;
 	}
      freeaddrinfo(res);
 // TODO : Aqui va la llamada/utilidad Finger, con el sendto se deberia enviar la respuesta del finger
-	nc = sendto (s, &reqaddr, sizeof(struct in_addr),
+	nc = sendto (s, buffer, sizeof(struct in_addr),
 			0, (struct sockaddr *)&clientaddr_in, addrlen);
 	if ( nc == -1) {
          perror("serverUDP");
@@ -428,4 +435,8 @@ void handle_finger_request(char* buffer, char* response)
 }
 
 
-void terminar();
+void terminate()
+{
+    FIN = 1;
+    printf("Señal de fin recibida");
+}
