@@ -428,11 +428,98 @@ void serverUDP(int s, char * buffer, struct sockaddr_in clientaddr_in)
          return;
          }   
  }
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <utmp.h>
+#include <pwd.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
-void handle_finger_request(char* buffer, char* response)
-{
-    // TODO: From buffer string execute command and parse output to string response
+void execute_command(const char* command, char* response, size_t* response_length, size_t max_length) {
+    FILE* fp = popen(command, "r");
+    if (!fp) {
+        snprintf(response + *response_length, max_length - *response_length, "Error al ejecutar: %s\r\n", command);
+        return;
+    }
+
+    char line[256];
+    while (fgets(line, sizeof(line), fp)) {
+        size_t len = strlen(line);
+        if (*response_length + len < max_length) {
+            strcat(response + *response_length, line);
+            *response_length += len;
+        } else {
+            snprintf(response + *response_length, max_length - *response_length, "Error: Respuesta demasiado larga\r\n");
+            pclose(fp);
+            return;
+        }
+    }
+    pclose(fp);
 }
+
+// Leer usuarios conectados desde /run/utmp
+void read_utmp(char* response, size_t* response_length, size_t max_length) {
+    struct utmp record;
+    FILE* fp = fopen(_PATH_UTMP, "r");
+    if (!fp) {
+        snprintf(response + *response_length, max_length - *response_length, "Error al leer /run/utmp: %s\r\n", strerror(errno));
+        return;
+    }
+
+    while (fread(&record, sizeof(struct utmp), 1, fp) == 1) {
+        if (record.ut_type == USER_PROCESS) {
+            size_t len = snprintf(response + *response_length, max_length - *response_length, 
+                                   "Usuario: %s Terminal: %s Host: %s Hora: %ld\r\n",
+                                   record.ut_user, record.ut_line, record.ut_host, record.ut_tv.tv_sec);
+            *response_length += len;
+            if (*response_length >= max_length) {
+                snprintf(response + *response_length, max_length - *response_length, "Respuesta truncada...\r\n");
+                break;
+            }
+        }
+    }
+    fclose(fp);
+}
+
+// Leer información de un usuario desde /etc/passwd
+void read_passwd_info(const char* user, char* response, size_t* response_length, size_t max_length) {
+    struct passwd* pwd = getpwnam(user);
+    if (!pwd) {
+        snprintf(response + *response_length, max_length - *response_length, "Usuario no encontrado en /etc/passwd\r\n");
+        return;
+    }
+
+    size_t len = snprintf(response + *response_length, max_length - *response_length,
+                          "Usuario: %s UID: %d GID: %d Home: %s Shell: %s\r\n",
+                          pwd->pw_name, pwd->pw_uid, pwd->pw_gid, pwd->pw_dir, pwd->pw_shell);
+    *response_length += len;
+}
+
+void handle_finger_request(char* buffer, char* response) {
+    size_t response_length = 0;
+    size_t max_response_size = 1024;
+
+    char* trimmed = strtok(buffer, "\r\n");
+
+    if (trimmed == NULL || strlen(trimmed) == 0) {
+        snprintf(response, max_response_size, "Usuarios actualmente conectados:\r\n");
+        response_length = strlen(response);
+        read_utmp(response, &response_length, max_response_size);
+    } else if (strchr(trimmed, '@') == NULL) {
+        snprintf(response, max_response_size, "Información para usuario: %s\r\n", trimmed);
+        response_length = strlen(response);
+        read_passwd_info(trimmed, response, &response_length, max_response_size);
+    } else {
+        snprintf(response, max_response_size, "Error: Solicitudes remotas no soportadas\r\n");
+    }
+
+    if (response_length > 516) {
+        snprintf(response, max_response_size, "Error: Respuesta demasiado larga\r\n");
+    }
+}
+
 
 
 void terminate()
