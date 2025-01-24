@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <utmp.h>
+#include <pwd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -10,6 +12,7 @@
 
 #define PORT 79 // Puerto "bien conocido" para Finger
 #define LOG_FILE "peticiones.log"
+#define BUFFER 1024
 
 // TODO: Create pararell socket for UDP, make the conections , create serverUDP();
 // TODO: Makefile
@@ -166,5 +169,46 @@ void log_event(const char *client_ip, int client_port, const char *protocol,
 
 void handle_finger_request(char* buffer, char* response)
 {
-    // TODO: From buffer string execute command and parse output to string response
+    
+    strcat (response, "\n\t\t\tUsuarios:\t");
+    struct utmp *entry;
+    setutent();
+
+    while ((entry = getutent()) != NULL) {
+        if (entry->ut_type == USER_PROCESS) {
+            struct passwd *user_info = getpwnam(entry->ut_user);
+            const char *name;
+            if (user_info && user_info->pw_gecos) {
+                name = user_info->pw_gecos;
+            } else {
+                name = "Nombre Desconocido";
+            }
+
+            const char *home_dir;
+            if (user_info && user_info->pw_dir) {
+                home_dir = user_info->pw_dir;
+            } else {
+                home_dir = "Directorio Desconocido";
+            }
+
+            const char *shell;
+            if (user_info && user_info->pw_shell) {
+                shell = user_info->pw_shell;
+            } else {
+                shell = "/bin/bash";
+            }
+
+
+
+            // Filtrado por servidor (pej: @nogal.usal.es)
+            
+                strncat(response, user_info, sizeof(response) - strlen(response) - 1);
+            }
+        }
+    }
+
+    endutent();
+
+    
+    
 }
